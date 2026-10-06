@@ -50,6 +50,12 @@ export const createFinancialAccountSchema = z.object({
         .toUpperCase()
         .pipe(z.enum(SUPPORTED_CURRENCIES)),
 
+    customBankName : z
+    .string()
+    .trim()
+    .max(100, "Custom Bank name is too long")
+    .optional(),  
+
     note: z
         .string()
         .trim()
