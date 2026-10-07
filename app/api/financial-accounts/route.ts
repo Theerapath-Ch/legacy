@@ -150,8 +150,44 @@ export const POST = async (request: Request) => {
         },
         { status: 201 },
     );
+}
 
 
+export const GET = async () => {
+    const sesstion = await auth.api.getSession({
+        headers: await headers(),
+    })
 
+    if (!sesstion) {
+        return Response.json(
+            { error: "Unauthorized" },
+            { status: 401 }
+        )
+    }
 
+    const userId = sesstion.user.id
+
+    const accqounts = await db.select({
+        id: financialAccount.id,
+        bankId: financialAccount.bankId,
+        name: financialAccount.name,
+        customBankName: financialAccount.customBankName,
+        accountNumberLast4: financialAccount.accountNumberLast4,
+        accountType: financialAccount.accountType,
+        currency: financialAccount.currency,
+        note: financialAccount.note,
+        status: financialAccount.status,
+        createdAt: financialAccount.createdAt,
+        updatedAt: financialAccount.updatedAt
+    })
+        .from(financialAccount)
+        .where(eq(financialAccount.userId, userId))
+
+    return Response.json(
+        {
+            message: "Financial accounts retrieved",
+            data: accqounts
+        },
+        { status: 200 }
+    )
 }
