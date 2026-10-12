@@ -63,6 +63,41 @@ export const createFinancialAccountSchema = z.object({
         .optional() // optonal คือ ไม่จำเป็นต้องมีมาใน request
 })
 
+export const updateFinancialAccountSchema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, "Account name is required")
+        .max(100, "Account name is too long ")
+        .optional(),
+
+        currency: z
+        .string()
+        .trim()
+        .length(3)
+        .toUpperCase()
+        .pipe(z.enum(SUPPORTED_CURRENCIES))
+        .optional(),
+
+    note: z
+        .string()
+        .trim()
+        .max(500)
+        .nullable()
+        .optional() 
+        
+})
+.strict()
+.refine(
+    (data) => 
+        data.name !== undefined ||
+        data.currency !== undefined ||
+        data.note !== undefined,
+    {
+        message: "At least one field must be provided for update",    
+    }        
+)
+
 export type createFinancialAccountInput = z.infer<
     typeof createFinancialAccountSchema
 >
