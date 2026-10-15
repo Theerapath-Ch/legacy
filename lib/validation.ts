@@ -50,11 +50,11 @@ export const createFinancialAccountSchema = z.object({
         .toUpperCase()
         .pipe(z.enum(SUPPORTED_CURRENCIES)),
 
-    customBankName : z
-    .string()
-    .trim()
-    .max(100, "Custom Bank name is too long")
-    .optional(),  
+    customBankName: z
+        .string()
+        .trim()
+        .max(100, "Custom Bank name is too long")
+        .optional(),
 
     note: z
         .string()
@@ -71,7 +71,7 @@ export const updateFinancialAccountSchema = z.object({
         .max(100, "Account name is too long ")
         .optional(),
 
-        currency: z
+    currency: z
         .string()
         .trim()
         .length(3)
@@ -84,19 +84,38 @@ export const updateFinancialAccountSchema = z.object({
         .trim()
         .max(500)
         .nullable()
-        .optional() 
-        
+        .optional()
+
 })
-.strict()
-.refine(
-    (data) => 
-        data.name !== undefined ||
-        data.currency !== undefined ||
-        data.note !== undefined,
-    {
-        message: "At least one field must be provided for update",    
-    }        
-)
+    .strict()
+    .refine(
+        (data) =>
+            data.name !== undefined ||
+            data.currency !== undefined ||
+            data.note !== undefined,
+        {
+            message: "At least one field must be provided for update",
+        }
+    )
+
+
+export const createBalanceHistorySchema = z.object({
+    balanceDate: z.iso.date(),
+    balance: z
+        .string()
+        .trim()
+        .regex(
+            /^\d{1,18}(\.\d{1,12})?$/,
+            "Balance must be a non-negative decimal with at most 18 integer digits and 12 decimal places"
+        ),
+
+    note: z
+        .string()
+        .trim()
+        .max(500)
+        .nullable()
+        .optional()
+}).strict()
 
 export type createFinancialAccountInput = z.infer<
     typeof createFinancialAccountSchema
