@@ -1,14 +1,14 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { createFinancialAccountSchema } from "@/lib/validation"
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { bank, auditLog, financialAccount } from "@/db/business-schema"
 import { v7 as uuidv7 } from "uuid";
 import { prepareAccountNumber } from "@/lib/financial-account"
 
 
-export const POST = async (request: Request) => {
+export const POST = async (req: Request) => {
     const session = await auth.api.getSession({
         headers: await headers()
     })
@@ -24,7 +24,7 @@ export const POST = async (request: Request) => {
     let body: unknown
 
     try {
-        body = await request.json()
+        body = await req.json()
     } catch (error) {
         return Response.json(
             { error: "Invalid Json" },
@@ -153,7 +153,7 @@ export const POST = async (request: Request) => {
 }
 
 
-export const GET = async () => {
+export const GET = async (req: Request) => {
     const sesstion = await auth.api.getSession({
         headers: await headers(),
     })
@@ -165,9 +165,24 @@ export const GET = async () => {
         )
     }
 
+    const { searchParams } = new URL(req.url)
+    //console.log(searchParams);
+    
+    const statusParam = searchParams.get("status")
+    console.log(statusParam);
+
+    const status = statusParam === null ? "ACTIVE" : statusParam
+
+    if(status !== "ACTIVE" && status !== "INACTIVE"){
+        return Response.json(
+            {error: "Invalid Status"},
+            {status: 400}
+        )
+    }
+
     const userId = sesstion.user.id
 
-    const accqounts = await db.select({
+    const account = await db.select({
         id: financialAccount.id,
         bankId: financialAccount.bankId,
         name: financialAccount.name,
@@ -181,12 +196,18 @@ export const GET = async () => {
         updatedAt: financialAccount.updatedAt
     })
         .from(financialAccount)
-        .where(eq(financialAccount.userId, userId))
+        .where(
+            and(
+                eq(financialAccount.userId, userId),
+                eq(financialAccount.status, status),
+            )
+        )
+
 
     return Response.json(
         {
             message: "Financial accounts retrieved",
-            data: accqounts
+            data: account
         },
         { status: 200 }
     )
