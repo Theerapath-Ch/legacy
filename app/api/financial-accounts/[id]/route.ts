@@ -9,6 +9,8 @@ import { v7 as uuidv7 } from "uuid";
 import { updateFinancialAccountSchema } from "@/lib/validation"
 
 const accountIdSchema = z.uuid()
+//console.log(accountIdSchema);
+
 
 export const GET = async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
     const session = await auth.api.getSession({
@@ -25,7 +27,7 @@ export const GET = async (req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const { id } = await params
-    console.log("id", id)
+    //console.log("id", id)
     const idResult = accountIdSchema.safeParse(id)
 
     if (!idResult.success) {
@@ -108,6 +110,8 @@ export const PATCH = async (req: Request, { params }: { params: Promise<{ id: st
     }
 
     const result = updateFinancialAccountSchema.safeParse(body)
+    console.log(result);
+    
 
     if (!result.success) {
         return Response.json(
@@ -215,7 +219,7 @@ export const PATCH = async (req: Request, { params }: { params: Promise<{ id: st
 
     })
 
-    if(!updatedAccount) {
+    if (!updatedAccount) {
         return Response.json(
             { error: "Financial account not found" },
             { status: 404 }
@@ -230,4 +234,120 @@ export const PATCH = async (req: Request, { params }: { params: Promise<{ id: st
         { status: 200 }
     )
 }
+
+export const DELETE = async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        return Response.json(
+            { error: "Unauthorized" },
+            { status: 401 }
+        )
+    }
+
+    const { id } = await params;
+    const idResult = accountIdSchema.safeParse(id)
+
+    //console.log(idResult);
+    
+
+    if (!idResult.success) {
+        return Response.json(
+            { error: " Invalid account id" },
+            { status: 401 }
+        )
+    }
+
+    const userId = session.user.id
+
+    const deleteAccount = await db.transaction(async (tx) => {
+        const [before] = await tx
+            .select({
+                id: financialAccount.id,
+                name: financialAccount.name,
+                status: financialAccount.status
+            })
+            .from(financialAccount)
+            .where(
+                and(
+                    eq(financialAccount.id, idResult.data),
+                    eq(financialAccount.userId, userId)
+                )
+            )
+            .limit(1);
+
+        if (!before) {
+            return null
+        }
+
+        if (before.status === "INACTIVE") {
+            return { alreadyInactive: true as const }
+        }
+
+        const [after] = await tx
+            .update(financialAccount)
+            .set({ status: "INACTIVE" })
+            .where(
+                and(
+                    eq(financialAccount.id, idResult.data),
+                    eq(financialAccount.userId, userId),
+                    eq(financialAccount.status, "ACTIVE"),
+                )
+            )
+            .returning({
+                id: financialAccount.id,
+                name: financialAccount.name,
+                status: financialAccount.status
+            });
+
+        if (!after) {
+            throw new Error("Financial account status update failed ");
+        }
+
+        await tx.insert(auditLog).values({
+            id: uuidv7(),
+            userId,
+            entityType: "FINANCIAL_ACCOUNT",
+            entityId: before.id,
+            action: "DELETE",
+            beforeData: {
+                name: before.name,
+                status: before.status
+            },
+            afterData: {
+                name: after.name,
+                status: after.status
+            }
+        });
+
+        return { alreadyInactive: false as const, account: after }
+    });
+
+    console.log(deleteAccount)
+
+    if (!deleteAccount) {
+        return Response.json(
+            { error: "Fianacial account not found" },
+            { status: 404 }
+        )
+    }
+    
+
+    if (deleteAccount.alreadyInactive) {
+        return Response.json(
+            { error: "Financial account is already inactive" },
+            { status: 409 }
+        )
+    }
+
+    return Response.json(
+        {
+            massage: "Finanacial account deactivated",
+            data: deleteAccount.account
+        },
+        { status: 200 }
+    );
+};
 
