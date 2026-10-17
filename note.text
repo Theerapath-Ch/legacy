@@ -1,0 +1,17 @@
+POST http://localhost:3000/api/auth/sign-in/email
+{
+  "email": "test@example.com",
+  "password": "TestPassword123!"
+}
+
+POST http://localhost:3000/api/auth/sign-up/email
+{	
+  "name" : "Test User",
+  "email": "test@example.com",
+  "password": "TestPassword123!"
+}
+{	
+  "name" : "theerapath",
+  "email": "test1@example.com",
+  "password": "TestPassword123!"
+}
